@@ -1,0 +1,30 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform.lock.hcl
+terraform/environments/*/terraform.tfvars
+override.tf
+override.tf.json
+
+# Ansible
+*.retry
+ansible/inventories/*/hosts.ini
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Secrets — NEVER COMMIT THESE
+*.pem
+*.key
+*credentials*
+.env
+
+# OS & IDE
+.DS_Store
+.vscode/
+*.swp
