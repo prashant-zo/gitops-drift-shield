@@ -18,7 +18,7 @@ resource "aws_security_group" "app" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_block  = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -26,7 +26,7 @@ resource "aws_security_group" "app" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_block  = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
@@ -34,14 +34,14 @@ resource "aws_security_group" "app" {
     from_port   = 9100
     to_port     = 9100
     protocol    = "tcp"
-    cidr_block  = [var.vpc_cidr]
+    cidr_blocks = [var.vpc_cidr]
   }
 
   egress {
-    from_port  = 0
-    to_port    = 0
-    protocol   = "-1"
-    cidr_block = ["0.0.0.0/0"]
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = merge(var.common_tags, {
