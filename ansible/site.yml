@@ -1,0 +1,8 @@
+---
+- name: Configure all app servers
+  hosts: app
+  gather_facts: yes
+  roles:
+    - common
+    - monitoring
+    - app

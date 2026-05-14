@@ -1,0 +1,47 @@
+---
+- name: Install Python Flask
+  pip:
+    name: flask
+    executable: pip3
+    break_system_packages: yes
+  become: yes
+
+- name: Create app directory
+  file:
+    path: /opt/driftshield-app
+    state: directory
+    owner: appuser
+    mode: '0755'
+  become: yes
+
+- name: Deploy sample app code
+  copy:
+    content: |
+      from flask import Flask
+      app = Flask(__name__)
+
+      @app.route('/health')
+      def health():
+          return {'status': 'ok', 'service': 'gitops-drift-shield-demo'}, 200
+
+      if __name__ == '__main__':
+         app.run(host='0.0.0.0', port={{ app_port }})
+    dest: /opt/driftshield-app/app.py
+    owner: appuser
+  become: yes
+  notify: restart app
+
+- name: Deploy app systemd service
+  template:
+    src: app.service.j2
+    dest: /etc/systemd/system/driftshield-app.service
+  become: yes
+  notify: restart app
+
+- name: Enable and start app
+  systemd:
+    name: driftshield-app
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes

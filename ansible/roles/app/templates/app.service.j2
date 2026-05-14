@@ -1,0 +1,12 @@
+[Unit]
+Description=Drift Shield Demo App
+After=network.target
+
+[Service]
+user=appuser
+WorkingDirectory=/opt/driftshield-app
+ExecStart=/usr/bin/python3 /opt/driftshield-app/app.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
