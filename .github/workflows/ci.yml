@@ -27,7 +27,7 @@ jobs:
           aws-region: ap-south-1
 
       - name: Terraform Format Check
-        uses: terraform fmt -check -recursive terraform/
+        run: terraform fmt -check -recursive terraform/
 
       - name: Terraform Init
         working-directory: terraform/environments/dev
