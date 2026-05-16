@@ -1,0 +1,44 @@
+name: Scheduled Drift Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  detect-drift:
+    name: Run Drift Detector
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: terraform/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python Dependencies
+        run: pip install -r drift-detector/requirements.txt
+
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init
+
+      - name: Run Drift Detector
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python3 drift-detector/detector.py --env dev
+        continue-on-error: true
