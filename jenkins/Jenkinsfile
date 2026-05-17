@@ -1,0 +1,68 @@
+pipeline {
+    agent any
+
+    environment {
+    	ENVIRONMENT = 'dev'
+	TF_DIR = "terraform/environments/${ENVIRONMENT}"
+    }
+
+    options {
+    	timestamps()
+	ansiColor('xterm')
+    }
+
+    stages {
+    	stage('Checkout Code') {
+	    steps {
+                checkout scm
+	    }
+	}
+
+	stage('Terraform Init') {
+            steps {
+            	sh "terraform init ${TF_DIR}"
+	    }
+	}
+
+	stage('Drift Detection & Remediation') {
+            steps {
+                def exitCode = sh(
+                    script: "terraform plan -detailed-exitcode -no-color ${TF_DIR} > tfplan.txt",
+		    returnStatus: true
+		)
+
+		if (exitCode == 0) {
+                    echo "✅ No drift detected. System is healthy."
+                    currentBuild.result = 'SUCCESS'
+                } else if (exitCode == 2) {
+                    echo "⚠️ DRIFT DETECTED! Initiating Auto-Remediation..."
+                    sh "terraform apply -auto-approve ${TF_DIR}"
+                    env.REMEDIATION_DONE = 'true'
+                } else {
+                    error("❌ Terraform plan failed. Check logs.")
+		}
+	    }
+	}
+
+	stage('Audit Log to S3') {
+            when {
+                environment name: "REMEDIATION_DONE", value: 'true'
+	    }
+	    steps {
+	        script {
+		    def timestamp = sh(script: "date -u +'%Y-%m-%d:T%H:%M:%SZ'", returnStdout: true).trim()
+
+		    def logEntry = """{"timestamp": "${timestamp}", "environment": "${ENVIRONMENT}", "action": "auto-remediation-applied"}"""
+		    writeFile file: 'audit.json', text: logEntry
+
+		    sh """
+                        BUCKET=\$(terraform -chdir=${TF_DIR} output -raw audit_bucket)
+                        aws s3 cp audit.json s3://\$BUCKET/audit-logs/${timestamp}-remediation.json
+                    """
+
+		    echo "✅ Audit log securely stored in S3."
+		}
+	    }
+	}
+    }
+}
