@@ -32,3 +32,16 @@ spec:
                 secretKeyRef:
                   name: aws-credentials
                   key: secret_key
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins
+  namespace: monitoring
+spec:
+  selector:
+    app: jenkins
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
