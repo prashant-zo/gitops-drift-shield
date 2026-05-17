@@ -4,6 +4,7 @@ pipeline {
     environment {
         ENVIRONMENT = 'dev'
         TF_DIR = "terraform/environments/${ENVIRONMENT}"
+	TF_VAR_key_pair_name = "gitops-drift-shield-dev"
     }
 
     options {
