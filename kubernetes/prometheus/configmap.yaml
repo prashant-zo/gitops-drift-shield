@@ -16,4 +16,4 @@ data:
 
       - job_name: 'node-exporter'
         static_configs:
-          - targets: ['3.108.64.127:9100']
+          - targets: ['52.66.244.14:9100']

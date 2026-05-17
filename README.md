@@ -1,11 +1,7 @@
-<p align="center">
-  <img src="docs/assets/architecture.png" alt="GitOps Drift Shield — system architecture" width="100%" />
-</p>
-
 <h1 align="center">GitOps Drift Shield</h1>
 
 <p align="center">
-  <strong>Detect Terraform infrastructure drift on AWS, alert your team, expose metrics, and optionally auto-remediate — with audit logs.</strong>
+  <strong>Built an automated, closed-loop SRE pipeline that detects manual AWS changes, alerts the engineering team, automatically remediates the drift, and securely logs the incident for compliance auditing.</strong>
 </p>
 
 <p align="center">
@@ -42,11 +38,6 @@
   </a>
 </p>
 
-```text
-# After recording, update the link above:
-LOOM_URL=https://www.loom.com/share/YOUR_VIDEO_ID
-```
-
 ---
 
 ## Overview
@@ -54,7 +45,7 @@ LOOM_URL=https://www.loom.com/share/YOUR_VIDEO_ID
 **GitOps Drift Shield** is a hands-on DevOps lab project that keeps AWS infrastructure defined in **Terraform** aligned with reality. When someone changes resources outside Terraform (console, CLI, or manual edits), the project:
 
 1. **Detects** drift via `terraform plan -detailed-exitcode` (locally, on a schedule in GitHub Actions, or in Jenkins).
-2. **Notifies** via Slack (optional) and **metrics** via Prometheus Pushgateway (when reachable).
+2. **Notifies** via Slack and **metrics** via Prometheus Pushgateway (when reachable).
 3. **Remediates** optionally through a Jenkins pipeline that applies the saved plan and writes a JSON audit entry to S3.
 
 Configuration management on EC2 (demo Flask app + node_exporter) is handled with **Ansible**. A **Kubernetes** `monitoring` namespace runs Prometheus, Grafana, Pushgateway, and an optional Jenkins agent image for local/kind-style setups.
@@ -68,7 +59,6 @@ Configuration management on EC2 (demo Flask app + node_exporter) is handled with
 | Remediation | Jenkins (`jenkins/Jenkinsfile`) |
 | Observability | Prometheus, Grafana, Pushgateway, node_exporter |
 
-> **Note on naming:** This repo focuses on **Terraform drift** on AWS. Full GitOps (e.g. Flux/Argo CD reconciling cluster manifests) is not implemented yet — the Kubernetes manifests are deployed separately for the monitoring stack.
 
 ---
 
@@ -288,102 +278,66 @@ gitops-drift-shield/
 
 ---
 
-## Quick start
+## 🚀 Quick Start / Local Runbook
 
-### 1. Clone and configure Terraform variables
+If you want to spin up this entire architecture locally, ensure you have Docker/Colima, `kind`, Terraform, and Ansible installed.
 
-```bash
-git clone https://github.com/prashant-zo/gitops-drift-shield.git
-cd gitops-drift-shield
-```
-
-Create `terraform/environments/dev/terraform.tfvars` (this file is **gitignored**):
-
-```hcl
-key_pair_name = "gitops-drift-shield-dev"   # must exist in ap-south-1
-# instance_type  = "t2.micro"               # optional
-# instance_count = 1                        # optional
-```
-
-### 2. Remote state bootstrap
-
-Create once in AWS (names must match `terraform/environments/dev/main.tf`):
-
-- S3 bucket: `gitops-drift-shield-tfstate-prashant-31306` (encryption enabled)
-- DynamoDB table: `drift-shield-tfstate-lock` (partition key `LockID`, on-demand billing)
-
-### 3. Provision infrastructure
+### 1. Provision Cloud Infrastructure
 
 ```bash
-make init      # terraform init in environments/dev
-make plan
-make apply     # creates VPC, EC2, audit bucket
+# Set AWS credentials and initialize Terraform
+export AWS_ACCESS_KEY_ID="your_key"
+export AWS_SECRET_ACCESS_KEY="your_secret"
+
+make init
+make apply
 ```
 
-Or without Make:
+### 2. Server Configuration
 
 ```bash
-cd terraform/environments/dev && terraform init && terraform apply
-```
-
-**Outputs** after apply:
-
-| Output | Description |
-|--------|-------------|
-| `vpc_id` | VPC identifier |
-| `public_ips` | EC2 public IPs |
-| `audit_bucket` | S3 bucket for remediation audit logs |
-| `security_group_id` | App security group |
-
-### 4. Configure EC2 with Ansible
-
-```bash
+# Dynamically fetch EC2 IP and run Ansible playbooks
 ./scripts/generate-inventory.sh dev
 cd ansible && ansible-playbook site.yml
 ```
 
-Verify the demo app:
+### 3. Deploy Kubernetes Stack
 
 ```bash
-curl http://<EC2_PUBLIC_IP>:8080/health
-# {"status":"ok","service":"gitops-drift-shield-demo"}
-```
-
-### 5. Run drift detection manually
-
-```bash
-pip install -r drift-detector/requirements.txt
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_DEFAULT_REGION=ap-south-1
-# optional:
-# export SLACK_WEBHOOK_URL=...
-# export PUSHGATEWAY_URL=http://<pushgateway-host>:9091
-
-python3 drift-detector/detector.py --env dev
-```
-
-> The Makefile `help` text mentions `make drift-check`, but only `init`, `plan`, `apply`, and `destroy` are implemented today. Use the Python command above until a Make target is added.
-
-### 6. (Optional) Deploy monitoring on Kubernetes
-
-```bash
+# Deploy Jenkins, Prometheus, and Grafana to local Kind cluster
 kubectl apply -f kubernetes/namespaces/monitoring.yaml
 kubectl apply -f kubernetes/prometheus/
 kubectl apply -f kubernetes/grafana/
+kubectl apply -f kubernetes/jenkins/
 ```
 
-**Important:** Update `kubernetes/prometheus/configmap.yaml` — the `node-exporter` job currently uses a **static EC2 IP**. After each EC2 replacement, set `targets` to your current `public_ips` output (or automate via your own templating).
+### 4. Run the End-to-End Test
 
-| Service | Namespace | Port |
-|---------|-----------|------|
-| Prometheus | `monitoring` | `9090` |
-| Pushgateway | `monitoring` | `9091` |
-| Grafana | `monitoring` | `3000` (admin password in deployment manifest: `driftshield123`) |
+I built an interactive End-to-End testing script to verify the entire pipeline.
 
-Import the bundled dashboard: `kubernetes/grafana/dashboards/GitOps Drift Shield-1778964251043.json`.
+```bash
+export SLACK_WEBHOOK_URL="your_slack_webhook"
+./scripts/e2e-test.sh
+```
 
-### 7. (Optional) Jenkins in Kubernetes
+**Follow the Prompts:**
+- Watch it pass the baseline.
+- Watch it inject the drift.
+- Watch it detect the drift and send the Slack alert!
+- *[SCRIPT PAUSES]*
+- Switch to your browser: Show Grafana (It is red 🚨!).
+- Switch to Jenkins: Click Build Now on your pipeline. Watch the console output destroy the rogue rule.
+- Go back to iTerm2 and hit Enter to unpause the script.
+- Watch it verify the fix (✅ PASS: Drift resolved).
+
+### 5. Check the S3 Audit Log
+
+```bash
+BUCKET=$(terraform -chdir=terraform/environments/dev output -raw audit_bucket)
+aws s3 ls s3://$BUCKET/audit-logs/
+```
+
+### 6. (Optional) Jenkins in Kubernetes
 
 ```bash
 # Build custom agent image (from repo root)
@@ -398,6 +352,14 @@ kubectl apply -f kubernetes/jenkins/deployment.yaml
 ```
 
 The deployment uses `image: drift-shield-jenkins:latest` with `imagePullPolicy: Never` — intended for **local clusters** where you load the image (e.g. `kind load docker-image`).
+
+### 7. Tear Down (Cost Saving)
+
+```bash
+make destroy
+kind delete cluster --name drift-shield
+colima stop
+```
 
 ---
 
@@ -473,30 +435,7 @@ Never commit `.pem`, `.env`, or `terraform.tfvars` — they are listed in `.giti
 
 ---
 
-## Known limitations
 
-Honest scope boundaries for this lab project:
-
-| Topic | Current state |
-|-------|----------------|
-| **GitOps** | No Flux/Argo CD; K8s manifests are not auto-synced from Git |
-| **Makefile** | `drift-check`, `lint`, `test` are listed in `.PHONY` but not implemented |
-| **Prometheus targets** | Hardcoded EC2 IP in `configmap.yaml` — update after reprovisioning |
-| **Availability zones** | Default `variables.tf` lists `ap-south-1b` twice |
-| **Security groups** | SSH and app port open to `0.0.0.0/0` — tighten for real environments |
-| **Drift workflow** | `continue-on-error: true` — workflow may not fail on drift |
-| **Jenkins image** | ARM64 Terraform/AWS CLI in Dockerfile; `imagePullPolicy: Never` for local K8s |
-| **Single environment** | Only `terraform/environments/dev` exists |
-
----
-
-## Destroy (cleanup)
-
-```bash
-make destroy
-```
-
-Remove remote state resources separately if you no longer need them (S3 bucket must be empty first).
 
 ---
 
@@ -513,8 +452,8 @@ Remove remote state resources separately if you no longer need them (S3 bucket m
 ---
 
 ## License
+This project is licensed under the [MIT License](LICENSE).
 
-This project is provided as a learning/portfolio repository. Add a `LICENSE` file if you choose to open-source it formally.
 
 <p align="center">
   <sub>Built while learning DevOps — feedback and issues welcome.</sub>

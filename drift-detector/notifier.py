@@ -29,7 +29,7 @@ def should_send_alert() -> bool:
     now = time.time()
     if os.path.exists(COOLDOWN_FILE):
         with open(COOLDOWN_FILE, "r") as f:
-            data: json.load(f)
+            data = json.load(f)
             last_alert = data.get("last_alert_time", 0)
             if now - last_alert < COOLDOWN_SECONDS:
                 logger.info("In cooldown period. Skipping slack alert.")

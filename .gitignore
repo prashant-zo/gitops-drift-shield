@@ -7,6 +7,10 @@
 terraform/environments/*/terraform.tfvars
 override.tf
 override.tf.json
+*.json
+*plan*
+tfplan.*
+audit.json
 
 # Ansible
 *.retry
