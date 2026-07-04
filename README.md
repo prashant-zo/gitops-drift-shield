@@ -431,7 +431,7 @@ Hooks (`.pre-commit-config.yaml`): trailing whitespace, EOF, YAML/JSON checks, p
 | `PUSHGATEWAY_URL` | Detector | Default `http://localhost:9091` |
 | `TF_VAR_key_pair_name` | Jenkins pipeline | EC2 key pair name |
 
-Never commit `.pem`, `.env`, or `terraform.tfvars` — they are listed in `.gitignore`.
+Never commit `.pem`, `.env`, or `terraform.tfvars` — they are listed in `.gitignore`
 
 ---
 
